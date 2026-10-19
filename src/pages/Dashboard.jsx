@@ -4,6 +4,7 @@ import { TodayEvents } from '../components/dashboard/TodayEvents';
 import { UpcomingDeadlines } from '../components/dashboard/UpcomingDeadlines';
 import { CurrentMonthHolidays } from '../components/dashboard/CurrentMonthHolidays';
 import { AssistantBriefing } from '../components/dashboard/AssistantBriefing';
+import { HabitTracker } from '../components/habits/HabitTracker';
 import { expandEventsForWeek } from '../utils/recurrence';
 import { getStartOfWeek, getEndOfWeek, safeToDate, isToday, getProjectUrgency } from '../utils/dateHelpers';
 import { getColombianHolidaysForMonth } from '../utils/colombianHolidays';
@@ -19,7 +20,14 @@ export const Dashboard = ({
   onSelectEvent,
   onToggleComplete,
   onOpenNewEvent,
-  onQuickCreate
+  onQuickCreate,
+  habits = [],
+  onToggleHabitToday,
+  isHabitCompletedToday,
+  getHabitStreak,
+  getHabitMonthCount,
+  onAddHabit,
+  onEditHabit
 }) => {
   const today = new Date();
   const weekStart = getStartOfWeek(today);
@@ -105,7 +113,7 @@ export const Dashboard = ({
         />
       </div>
 
-      {/* Main Grid: Today Agenda, Colombian Holidays & Project Deadlines */}
+      {/* Main Grid: Today Agenda, Habit Tracker, Colombian Holidays & Project Deadlines */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
@@ -115,6 +123,16 @@ export const Dashboard = ({
           events={expandedCurrentWeek}
           onSelectEvent={onSelectEvent}
           onToggleComplete={onToggleComplete}
+        />
+
+        <HabitTracker
+          habits={habits}
+          onToggleToday={onToggleHabitToday}
+          isCompletedToday={isHabitCompletedToday}
+          getStreak={getHabitStreak}
+          getMonthCount={getHabitMonthCount}
+          onAddHabit={onAddHabit}
+          onEditHabit={onEditHabit}
         />
 
         <CurrentMonthHolidays />

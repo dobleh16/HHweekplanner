@@ -3,11 +3,13 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useEvents } from './hooks/useEvents';
 import { useReminders } from './hooks/useReminders';
+import { useHabits } from './hooks/useHabits';
 import { Navbar } from './components/layout/Navbar';
 import { Dashboard } from './pages/Dashboard';
 import { CalendarPage } from './pages/CalendarPage';
 import { Login } from './pages/Login';
 import { EventModal } from './components/events/EventModal';
+import { HabitModal } from './components/habits/HabitModal';
 import { NotificationToastManager } from './components/reminders/NotificationToastManager';
 import { parseNaturalLanguageEvent } from './utils/assistantParser';
 import { setHours, setMinutes } from 'date-fns';
@@ -37,10 +39,24 @@ const ProtectedRoute = ({ children }) => {
 const MainAppLayout = () => {
   const { events, addEvent, updateEvent, deleteEvent, toggleComplete } = useEvents();
   const { toasts, removeToast, permissionGranted, requestNotificationPermission } = useReminders(events);
+  const {
+    habits,
+    addHabit,
+    updateHabit,
+    deleteHabit,
+    toggleTodayCompletion,
+    isCompletedToday,
+    getStreak,
+    getMonthCount
+  } = useHabits();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+
+  const [habitModalOpen, setHabitModalOpen] = useState(false);
+  const [editingHabit, setEditingHabit] = useState(null);
+  const [habitModalLoading, setHabitModalLoading] = useState(false);
 
   const handleOpenNewEvent = (initialDate = null) => {
     let start = new Date();
@@ -105,6 +121,47 @@ const MainAppLayout = () => {
     }
   };
 
+  const handleOpenNewHabit = () => {
+    setEditingHabit(null);
+    setHabitModalOpen(true);
+  };
+
+  const handleEditHabit = (habit) => {
+    setEditingHabit(habit);
+    setHabitModalOpen(true);
+  };
+
+  const handleSaveHabit = async (formData) => {
+    setHabitModalLoading(true);
+    try {
+      if (editingHabit?.id) {
+        await updateHabit(editingHabit.id, formData);
+      } else {
+        await addHabit(formData);
+      }
+      setHabitModalOpen(false);
+      setEditingHabit(null);
+    } catch (err) {
+      console.error('Error al guardar hábito:', err);
+    } finally {
+      setHabitModalLoading(false);
+    }
+  };
+
+  const handleDeleteHabit = async () => {
+    if (!editingHabit?.id) return;
+    setHabitModalLoading(true);
+    try {
+      await deleteHabit(editingHabit.id);
+      setHabitModalOpen(false);
+      setEditingHabit(null);
+    } catch (err) {
+      console.error('Error al eliminar hábito:', err);
+    } finally {
+      setHabitModalLoading(false);
+    }
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-base)' }}>
       <Navbar onOpenNewEvent={() => handleOpenNewEvent()} />
@@ -122,6 +179,13 @@ const MainAppLayout = () => {
                 onQuickCreate={handleQuickCreate}
                 onRequestPermission={requestNotificationPermission}
                 permissionGranted={permissionGranted}
+                habits={habits}
+                onToggleHabitToday={toggleTodayCompletion}
+                isHabitCompletedToday={isCompletedToday}
+                getHabitStreak={getStreak}
+                getHabitMonthCount={getMonthCount}
+                onAddHabit={handleOpenNewHabit}
+                onEditHabit={handleEditHabit}
               />
             }
           />
@@ -152,6 +216,19 @@ const MainAppLayout = () => {
         onSave={handleSaveEvent}
         onDelete={editingEvent?.id ? handleDeleteEvent : null}
         loading={modalLoading}
+      />
+
+      {/* Habit Modal */}
+      <HabitModal
+        isOpen={habitModalOpen}
+        onClose={() => {
+          setHabitModalOpen(false);
+          setEditingHabit(null);
+        }}
+        initialData={editingHabit}
+        onSave={handleSaveHabit}
+        onDelete={editingHabit?.id ? handleDeleteHabit : null}
+        loading={habitModalLoading}
       />
 
       {/* Notification Toast Manager */}
