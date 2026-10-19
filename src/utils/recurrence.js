@@ -1,5 +1,5 @@
 import { safeToDate, getStartOfWeek, getEndOfWeek, isSameDay } from './dateHelpers';
-import { addDays, setHours, setMinutes, getDay, isBefore } from 'date-fns';
+import { addDays, addWeeks, addMonths, setHours, setMinutes, getDay, isBefore, isAfter, startOfDay } from 'date-fns';
 
 /**
  * Normalizes day of week to 1=Monday, 2=Tuesday, ..., 7=Sunday
@@ -7,6 +7,88 @@ import { addDays, setHours, setMinutes, getDay, isBefore } from 'date-fns';
 export const getISOWeekDay = (date) => {
   const jsDay = getDay(date); // 0 = Sun, 1 = Mon, ..., 6 = Sat
   return jsDay === 0 ? 7 : jsDay;
+};
+
+/**
+ * Returns all occurrence dates for an event within the target week range,
+ * supporting: weekly, daily, biweekly (every 2 weeks), monthly frequencies.
+ */
+const getOccurrencesInRange = (evt, rangeStart, rangeEnd) => {
+  const baseStart = safeToDate(evt.startDateTime);
+  const baseEnd = safeToDate(evt.endDateTime);
+  const durationMs = Math.max(15 * 60 * 1000, baseEnd - baseStart);
+
+  const frequency = evt.recurrenceRule?.frequency || 'weekly';
+  const daysOfWeek = evt.recurrenceRule?.daysOfWeek || [];
+  const recurrenceEnd = evt.recurrenceRule?.endDate
+    ? new Date(evt.recurrenceRule.endDate)
+    : null;
+
+  const occurrences = [];
+
+  if (frequency === 'daily') {
+    // Iterate day by day in range
+    let cursor = new Date(rangeStart);
+    while (!isAfter(cursor, rangeEnd)) {
+      if (!isBefore(cursor, startOfDay(baseStart))) {
+        if (!recurrenceEnd || !isAfter(cursor, recurrenceEnd)) {
+          const virtualStart = setMinutes(setHours(cursor, baseStart.getHours()), baseStart.getMinutes());
+          occurrences.push(virtualStart);
+        }
+      }
+      cursor = addDays(cursor, 1);
+    }
+
+  } else if (frequency === 'weekly') {
+    // Iterate each day of the week range and match daysOfWeek
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const day = addDays(rangeStart, dayOffset);
+      const isoDay = getISOWeekDay(day);
+      if (daysOfWeek.includes(isoDay) && !isBefore(day, startOfDay(baseStart))) {
+        if (!recurrenceEnd || !isAfter(day, recurrenceEnd)) {
+          occurrences.push(setMinutes(setHours(day, baseStart.getHours()), baseStart.getMinutes()));
+        }
+      }
+    }
+
+  } else if (frequency === 'biweekly') {
+    // Every 2 weeks, on the same days of week as the original
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const day = addDays(rangeStart, dayOffset);
+      const isoDay = getISOWeekDay(day);
+      if (!daysOfWeek.includes(isoDay)) continue;
+      if (isBefore(day, startOfDay(baseStart))) continue;
+      if (recurrenceEnd && isAfter(day, recurrenceEnd)) continue;
+
+      // Check if this week is an "on" week (same parity as origin week)
+      const weeksSinceOrigin = Math.round(
+        (startOfDay(day) - startOfDay(baseStart)) / (7 * 24 * 60 * 60 * 1000)
+      );
+      if (weeksSinceOrigin % 2 === 0) {
+        occurrences.push(setMinutes(setHours(day, baseStart.getHours()), baseStart.getMinutes()));
+      }
+    }
+
+  } else if (frequency === 'monthly') {
+    // Same day of month as the original event
+    const targetDayOfMonth = baseStart.getDate();
+    let cursor = new Date(rangeStart);
+    while (!isAfter(cursor, rangeEnd)) {
+      if (cursor.getDate() === targetDayOfMonth) {
+        if (!isBefore(cursor, startOfDay(baseStart))) {
+          if (!recurrenceEnd || !isAfter(cursor, recurrenceEnd)) {
+            occurrences.push(setMinutes(setHours(cursor, baseStart.getHours()), baseStart.getMinutes()));
+          }
+        }
+      }
+      cursor = addDays(cursor, 1);
+    }
+  }
+
+  return occurrences.map(virtualStart => ({
+    durationMs,
+    virtualStart
+  }));
 };
 
 /**
@@ -23,9 +105,8 @@ export const expandEventsForWeek = (events = [], weekReferenceDate = new Date())
   events.forEach((evt) => {
     const startObj = safeToDate(evt.startDateTime);
     const endObj = safeToDate(evt.endDateTime);
-    const durationMinutes = Math.max(15, Math.round((endObj - startObj) / (1000 * 60)));
 
-    if (!evt.isRecurring || !evt.recurrenceRule || !evt.recurrenceRule.daysOfWeek) {
+    if (!evt.isRecurring || !evt.recurrenceRule) {
       // One-time event
       expandedList.push({
         ...evt,
@@ -36,39 +117,29 @@ export const expandEventsForWeek = (events = [], weekReferenceDate = new Date())
       return;
     }
 
-    // Recurring event (e.g. Gym schedules)
-    const daysOfWeek = evt.recurrenceRule.daysOfWeek || []; // Array of day numbers, e.g. [1, 3, 5] for Mon, Wed, Fri
-    
-    // Check each day of the target week
-    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-      const currentWeekDayDate = addDays(startOfTargetWeek, dayOffset);
-      const isoDay = getISOWeekDay(currentWeekDayDate);
+    // Recurring event — get occurrences in week
+    const occurrences = getOccurrencesInRange(evt, startOfTargetWeek, endOfTargetWeek);
 
-      if (daysOfWeek.includes(isoDay)) {
-        // Build virtual start and end date for this day
-        const virtualStart = setMinutes(
-          setHours(currentWeekDayDate, startObj.getHours()), 
-          startObj.getMinutes()
-        );
-        const virtualEnd = new Date(virtualStart.getTime() + durationMinutes * 60 * 1000);
+    occurrences.forEach(({ virtualStart, durationMs }) => {
+      const virtualEnd = new Date(virtualStart.getTime() + durationMs);
+      const isoDay = getISOWeekDay(virtualStart);
+      const virtualId = `${evt.id}_virtual_${isoDay}_${virtualStart.getTime()}`;
 
-        // Only include if original event start is not in the future beyond this virtual date
-        if (!isBefore(virtualStart, startObj) || isSameDay(virtualStart, startObj)) {
-          const virtualId = `${evt.id}_virtual_${isoDay}_${currentWeekDayDate.getTime()}`;
-          expandedList.push({
-            ...evt,
-            id: virtualId,
-            baseEventId: evt.id,
-            isVirtual: true,
-            computedStart: virtualStart,
-            computedEnd: virtualEnd,
-            startDateTime: virtualStart,
-            endDateTime: virtualEnd
-          });
-        }
-      }
-    }
+      expandedList.push({
+        ...evt,
+        id: virtualId,
+        baseEventId: evt.id,
+        isVirtual: true,
+        computedStart: virtualStart,
+        computedEnd: virtualEnd,
+        startDateTime: virtualStart,
+        endDateTime: virtualEnd
+      });
+    });
   });
 
   return expandedList;
 };
+
+// Re-export for backward compatibility
+export { addWeeks, addMonths };

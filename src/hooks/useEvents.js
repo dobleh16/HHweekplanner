@@ -64,11 +64,12 @@ export const useEvents = () => {
       endDateTime: Timestamp.fromDate(endDate),
       isRecurring: Boolean(eventData.isRecurring),
       recurrenceRule: eventData.isRecurring ? {
-        frequency: 'weekly',
-        daysOfWeek: eventData.daysOfWeek || [1]
+        frequency: eventData.recurrenceFrequency || 'weekly',
+        daysOfWeek: eventData.daysOfWeek || [1],
+        endDate: eventData.recurrenceEndDate || null
       } : null,
-      reminderMinutesBefore: Array.isArray(eventData.reminderMinutesBefore) 
-        ? eventData.reminderMinutesBefore 
+      reminderMinutesBefore: Array.isArray(eventData.reminderMinutesBefore)
+        ? eventData.reminderMinutesBefore
         : [15],
       category: eventData.category || eventData.type || 'task',
       completed: Boolean(eventData.completed || false),
@@ -96,11 +97,12 @@ export const useEvents = () => {
       endDateTime: Timestamp.fromDate(endDate),
       isRecurring: Boolean(eventData.isRecurring),
       recurrenceRule: eventData.isRecurring ? {
-        frequency: 'weekly',
-        daysOfWeek: eventData.daysOfWeek || [1]
+        frequency: eventData.recurrenceFrequency || 'weekly',
+        daysOfWeek: eventData.daysOfWeek || [1],
+        endDate: eventData.recurrenceEndDate || null
       } : null,
-      reminderMinutesBefore: Array.isArray(eventData.reminderMinutesBefore) 
-        ? eventData.reminderMinutesBefore 
+      reminderMinutesBefore: Array.isArray(eventData.reminderMinutesBefore)
+        ? eventData.reminderMinutesBefore
         : [15],
       category: eventData.category || eventData.type || 'task',
       completed: Boolean(eventData.completed),

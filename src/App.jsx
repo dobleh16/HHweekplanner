@@ -4,12 +4,16 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { useEvents } from './hooks/useEvents';
 import { useReminders } from './hooks/useReminders';
 import { useHabits } from './hooks/useHabits';
+import { useCategories } from './hooks/useCategories';
 import { Navbar } from './components/layout/Navbar';
 import { Dashboard } from './pages/Dashboard';
 import { CalendarPage } from './pages/CalendarPage';
+import { StatsPage } from './pages/StatsPage';
 import { Login } from './pages/Login';
 import { EventModal } from './components/events/EventModal';
 import { HabitModal } from './components/habits/HabitModal';
+import { CategoryModal } from './components/categories/CategoryModal';
+import { SearchModal } from './components/ui/SearchModal';
 import { NotificationToastManager } from './components/reminders/NotificationToastManager';
 import { parseNaturalLanguageEvent } from './utils/assistantParser';
 import { setHours, setMinutes } from 'date-fns';
@@ -41,34 +45,49 @@ const MainAppLayout = () => {
   const { toasts, removeToast, permissionGranted, requestNotificationPermission } = useReminders(events);
   const {
     habits,
+    completions,
     addHabit,
     updateHabit,
     deleteHabit,
     toggleTodayCompletion,
     isCompletedToday,
     getStreak,
-    getMonthCount
+    getMonthCount,
+    toDateKey
   } = useHabits();
+  const {
+    allCategories,
+    addCategory,
+    updateCategory,
+    deleteCategory
+  } = useCategories();
 
+  // ─── Event modal state ───
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
+  // ─── Habit modal state ───
   const [habitModalOpen, setHabitModalOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState(null);
   const [habitModalLoading, setHabitModalLoading] = useState(false);
 
+  // ─── Category modal state ───
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [categoryModalLoading, setCategoryModalLoading] = useState(false);
+
+  // ─── Search modal state ───
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // ─── Event handlers ───
   const handleOpenNewEvent = (initialDate = null) => {
     let start = new Date();
     if (initialDate instanceof Date) {
       start = initialDate;
     }
     const end = new Date(start.getTime() + 60 * 60 * 1000);
-
-    setEditingEvent({
-      startDateTime: start,
-      endDateTime: end
-    });
+    setEditingEvent({ startDateTime: start, endDateTime: end });
     setModalOpen(true);
   };
 
@@ -121,6 +140,7 @@ const MainAppLayout = () => {
     }
   };
 
+  // ─── Habit handlers ───
   const handleOpenNewHabit = () => {
     setEditingHabit(null);
     setHabitModalOpen(true);
@@ -162,9 +182,54 @@ const MainAppLayout = () => {
     }
   };
 
+  // ─── Category handlers ───
+  const handleSaveCategory = async (formData) => {
+    setCategoryModalLoading(true);
+    try {
+      if (editingCategory?.id && !editingCategory?.isDefault) {
+        await updateCategory(editingCategory.id, formData);
+      } else {
+        await addCategory(formData);
+      }
+      setCategoryModalOpen(false);
+      setEditingCategory(null);
+    } catch (err) {
+      console.error('Error al guardar categoría:', err);
+    } finally {
+      setCategoryModalLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!editingCategory?.id) return;
+    setCategoryModalLoading(true);
+    try {
+      await deleteCategory(editingCategory.id);
+      setCategoryModalOpen(false);
+      setEditingCategory(null);
+    } catch (err) {
+      console.error('Error al eliminar categoría:', err);
+    } finally {
+      setCategoryModalLoading(false);
+    }
+  };
+
+  const habitProps = {
+    habits,
+    onToggleHabitToday: toggleTodayCompletion,
+    isHabitCompletedToday: isCompletedToday,
+    getHabitStreak: getStreak,
+    getHabitMonthCount: getMonthCount,
+    onAddHabit: handleOpenNewHabit,
+    onEditHabit: handleEditHabit
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-base)' }}>
-      <Navbar onOpenNewEvent={() => handleOpenNewEvent()} />
+      <Navbar
+        onOpenNewEvent={() => handleOpenNewEvent()}
+        onOpenSearch={() => setSearchOpen(true)}
+      />
 
       <main style={{ flex: 1 }}>
         <Routes>
@@ -179,13 +244,7 @@ const MainAppLayout = () => {
                 onQuickCreate={handleQuickCreate}
                 onRequestPermission={requestNotificationPermission}
                 permissionGranted={permissionGranted}
-                habits={habits}
-                onToggleHabitToday={toggleTodayCompletion}
-                isHabitCompletedToday={isCompletedToday}
-                getHabitStreak={getStreak}
-                getHabitMonthCount={getMonthCount}
-                onAddHabit={handleOpenNewHabit}
-                onEditHabit={handleEditHabit}
+                {...habitProps}
               />
             }
           />
@@ -201,6 +260,19 @@ const MainAppLayout = () => {
               />
             }
           />
+          <Route
+            path="/stats"
+            element={
+              <StatsPage
+                rawEvents={events}
+                habits={habits}
+                completions={completions}
+                getStreak={getStreak}
+                getMonthCount={getMonthCount}
+                toDateKey={toDateKey}
+              />
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -208,10 +280,7 @@ const MainAppLayout = () => {
       {/* Global Event Modal */}
       <EventModal
         isOpen={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setEditingEvent(null);
-        }}
+        onClose={() => { setModalOpen(false); setEditingEvent(null); }}
         initialData={editingEvent}
         onSave={handleSaveEvent}
         onDelete={editingEvent?.id ? handleDeleteEvent : null}
@@ -221,14 +290,31 @@ const MainAppLayout = () => {
       {/* Habit Modal */}
       <HabitModal
         isOpen={habitModalOpen}
-        onClose={() => {
-          setHabitModalOpen(false);
-          setEditingHabit(null);
-        }}
+        onClose={() => { setHabitModalOpen(false); setEditingHabit(null); }}
         initialData={editingHabit}
         onSave={handleSaveHabit}
         onDelete={editingHabit?.id ? handleDeleteHabit : null}
         loading={habitModalLoading}
+      />
+
+      {/* Category Modal */}
+      <CategoryModal
+        isOpen={categoryModalOpen}
+        onClose={() => { setCategoryModalOpen(false); setEditingCategory(null); }}
+        initialData={editingCategory}
+        onSave={handleSaveCategory}
+        onDelete={editingCategory?.id && !editingCategory?.isDefault ? handleDeleteCategory : null}
+        loading={categoryModalLoading}
+      />
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        events={events}
+        habits={habits}
+        onSelectEvent={(evt) => { handleSelectEvent(evt); }}
+        allCategories={allCategories}
       />
 
       {/* Notification Toast Manager */}

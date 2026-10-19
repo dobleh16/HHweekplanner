@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { Target } from 'lucide-react';
 
 const PRESET_EMOJIS = ['🏃', '💪', '📚', '💧', '🧘', '🥗', '😴', '✍️', '🎯', '🎸', '🌿', '⭐'];
 const PRESET_COLORS = [
@@ -29,19 +30,20 @@ export const HabitModal = ({
   const [description, setDescription] = useState(initialData?.description || '');
   const [emoji, setEmoji] = useState(initialData?.emoji || '⭐');
   const [color, setColor] = useState(initialData?.color || '#5B8DEF');
+  const [monthlyGoal, setMonthlyGoal] = useState(initialData?.monthlyGoal || '');
 
-  // Sync when initialData changes (open for edit)
   React.useEffect(() => {
     setTitle(initialData?.title || '');
     setDescription(initialData?.description || '');
     setEmoji(initialData?.emoji || '⭐');
     setColor(initialData?.color || '#5B8DEF');
+    setMonthlyGoal(initialData?.monthlyGoal || '');
   }, [initialData, isOpen]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!title.trim()) return;
-    onSave({ title, description, emoji, color });
+    onSave({ title, description, emoji, color, monthlyGoal });
   };
 
   return (
@@ -132,6 +134,39 @@ export const HabitModal = ({
           onChange={(e) => setDescription(e.target.value)}
         />
 
+        {/* Monthly Goal */}
+        <div>
+          <label style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)', display: 'block', marginBottom: '0.6rem' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Target size={14} style={{ color: '#FB923C' }} />
+              Meta mensual (días) — opcional
+            </span>
+          </label>
+          <input
+            type="number"
+            min="1"
+            max="31"
+            placeholder="Ej: 20 días este mes"
+            value={monthlyGoal}
+            onChange={(e) => setMonthlyGoal(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.6rem 0.85rem',
+              backgroundColor: 'var(--bg-base)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-main)',
+              outline: 'none',
+              fontSize: '0.95rem'
+            }}
+          />
+          {monthlyGoal > 0 && (
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '0.3rem' }}>
+              Verás una barra de progreso con tu avance hacia {monthlyGoal} días este mes.
+            </p>
+          )}
+        </div>
+
         {/* Preview */}
         <div style={{
           padding: '0.9rem 1rem',
@@ -150,11 +185,12 @@ export const HabitModal = ({
             alignItems: 'center',
             justifyContent: 'center',
             borderRadius: 'var(--radius-md)',
-            backgroundColor: `${color}20`
+            backgroundColor: `${color}20`,
+            flexShrink: 0
           }}>
             {emoji}
           </span>
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 600, color: color, fontSize: '0.95rem' }}>
               {title || 'Nombre del hábito'}
             </div>
@@ -163,11 +199,16 @@ export const HabitModal = ({
                 {description}
               </div>
             )}
+            {monthlyGoal > 0 && (
+              <div style={{ fontSize: '0.78rem', color: '#FB923C', marginTop: '0.2rem' }}>
+                🎯 Meta: {monthlyGoal} días / mes
+              </div>
+            )}
           </div>
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', paddingTop: '0.25rem', flexWrap: 'wrap' }}>
           {isEditing && onDelete && (
             <Button variant="danger" onClick={onDelete} loading={loading} type="button">
               Eliminar

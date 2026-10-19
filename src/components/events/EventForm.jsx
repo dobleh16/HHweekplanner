@@ -14,6 +14,13 @@ const TYPE_OPTIONS = [
   { value: 'custom', label: 'Personalizado' }
 ];
 
+const FREQUENCY_OPTIONS = [
+  { value: 'daily', label: 'Todos los días' },
+  { value: 'weekly', label: 'Semanal (días elegidos)' },
+  { value: 'biweekly', label: 'Cada 2 semanas' },
+  { value: 'monthly', label: 'Mensual (mismo día)' }
+];
+
 const REMINDER_OPTIONS = [
   { value: '0', label: 'A la hora del evento' },
   { value: '15', label: '15 minutos antes' },
@@ -53,8 +60,14 @@ export const EventForm = ({
   const [startDateTime, setStartDateTime] = useState(defaultStart);
   const [endDateTime, setEndDateTime] = useState(defaultEnd);
   const [isRecurring, setIsRecurring] = useState(initialData?.isRecurring || false);
+  const [recurrenceFrequency, setRecurrenceFrequency] = useState(
+    initialData?.recurrenceRule?.frequency || 'weekly'
+  );
   const [daysOfWeek, setDaysOfWeek] = useState(
     initialData?.recurrenceRule?.daysOfWeek || [1, 3, 5]
+  );
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState(
+    initialData?.recurrenceRule?.endDate || ''
   );
   const [reminderMinutes, setReminderMinutes] = useState(
     initialData?.reminderMinutesBefore?.[0]?.toString() || '15'
@@ -110,7 +123,9 @@ export const EventForm = ({
       startDateTime: new Date(startDateTime).toISOString(),
       endDateTime: new Date(endDateTime).toISOString(),
       isRecurring,
+      recurrenceFrequency,
       daysOfWeek: isRecurring ? daysOfWeek : null,
+      recurrenceEndDate: isRecurring && recurrenceEndDate ? recurrenceEndDate : null,
       reminderMinutesBefore: [parseInt(reminderMinutes, 10)],
       completed
     });
@@ -185,8 +200,8 @@ export const EventForm = ({
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <span style={{ fontWeight: 500, fontSize: '0.9rem', color: 'var(--text-main)' }}>Horario Fijo Recurrente</span>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Repetir todas las semanas en días elegidos (ej. Gym)</p>
+            <span style={{ fontWeight: 500, fontSize: '0.9rem', color: 'var(--text-main)' }}>Horario Recurrente</span>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Repetir en intervalos regulares</p>
           </div>
           <input
             type="checkbox"
@@ -197,30 +212,58 @@ export const EventForm = ({
         </div>
 
         {isRecurring && (
-          <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
-            {DAYS_OF_WEEK.map((day) => {
-              const active = daysOfWeek.includes(day.id);
-              return (
-                <button
-                  key={day.id}
-                  type="button"
-                  onClick={() => toggleDay(day.id)}
-                  style={{
-                    flex: 1,
-                    padding: '0.4rem 0',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    backgroundColor: active ? 'var(--accent-primary)' : 'var(--bg-surface)',
-                    color: active ? '#FFFFFF' : 'var(--text-muted)',
-                    border: '1px solid var(--border-subtle)',
-                    transition: 'all var(--transition-fast)'
-                  }}
-                >
-                  {day.label}
-                </button>
-              );
-            })}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {/* Frequency Selector */}
+            <Select
+              label="Frecuencia"
+              options={FREQUENCY_OPTIONS}
+              value={recurrenceFrequency}
+              onChange={(e) => setRecurrenceFrequency(e.target.value)}
+            />
+
+            {/* Days of week (only for weekly / biweekly) */}
+            {(recurrenceFrequency === 'weekly' || recurrenceFrequency === 'biweekly') && (
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)', display: 'block', marginBottom: '0.5rem' }}>
+                  Días de la semana
+                </label>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  {DAYS_OF_WEEK.map((day) => {
+                    const active = daysOfWeek.includes(day.id);
+                    return (
+                      <button
+                        key={day.id}
+                        type="button"
+                        onClick={() => toggleDay(day.id)}
+                        style={{
+                          flex: '1 1 auto',
+                          minWidth: '40px',
+                          padding: '0.4rem 0',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          backgroundColor: active ? 'var(--accent-primary)' : 'var(--bg-surface)',
+                          color: active ? '#FFFFFF' : 'var(--text-muted)',
+                          border: '1px solid var(--border-subtle)',
+                          transition: 'all var(--transition-fast)'
+                        }}
+                      >
+                        {day.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* End date of recurrence */}
+            <Input
+              label="Fecha de fin (opcional)"
+              type="date"
+              value={recurrenceEndDate}
+              onChange={(e) => setRecurrenceEndDate(e.target.value)}
+              helperText="Si no defines una fecha de fin, la recurrencia es indefinida."
+            />
           </div>
         )}
       </div>

@@ -105,6 +105,7 @@ export const useHabits = () => {
       description: habitData.description ? habitData.description.trim() : '',
       emoji: habitData.emoji || '⭐',
       color: habitData.color || 'var(--accent-primary)',
+      monthlyGoal: habitData.monthlyGoal ? Number(habitData.monthlyGoal) : 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
@@ -120,6 +121,7 @@ export const useHabits = () => {
       description: habitData.description ? habitData.description.trim() : '',
       emoji: habitData.emoji || '⭐',
       color: habitData.color || 'var(--accent-primary)',
+      monthlyGoal: habitData.monthlyGoal ? Number(habitData.monthlyGoal) : 0,
       updatedAt: serverTimestamp()
     });
   };
