@@ -4,6 +4,7 @@ import { TodayEvents } from '../components/dashboard/TodayEvents';
 import { UpcomingDeadlines } from '../components/dashboard/UpcomingDeadlines';
 import { CurrentMonthHolidays } from '../components/dashboard/CurrentMonthHolidays';
 import { AssistantBriefing } from '../components/dashboard/AssistantBriefing';
+import { DailyLawCard } from '../components/dashboard/DailyLawCard';
 import { HabitTracker } from '../components/habits/HabitTracker';
 import { expandEventsForWeek } from '../utils/recurrence';
 import { getStartOfWeek, getEndOfWeek, safeToDate, isToday, getProjectUrgency } from '../utils/dateHelpers';
@@ -113,7 +114,7 @@ export const Dashboard = ({
         />
       </div>
 
-      {/* Main Grid: Today Agenda, Habit Tracker, Colombian Holidays & Project Deadlines */}
+      {/* Main Grid: Today Agenda, Habit Tracker, Colombian Holidays, Project Deadlines & Daily Law */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
@@ -134,6 +135,8 @@ export const Dashboard = ({
           onAddHabit={onAddHabit}
           onEditHabit={onEditHabit}
         />
+
+        <DailyLawCard />
 
         <CurrentMonthHolidays />
 
