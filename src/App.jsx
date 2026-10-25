@@ -5,6 +5,7 @@ import { useEvents } from './hooks/useEvents';
 import { useReminders } from './hooks/useReminders';
 import { useHabits } from './hooks/useHabits';
 import { useCategories } from './hooks/useCategories';
+import { usePushNotifications } from './hooks/usePushNotifications';
 import { Navbar } from './components/layout/Navbar';
 import { Dashboard } from './pages/Dashboard';
 import { CalendarPage } from './pages/CalendarPage';
@@ -15,6 +16,7 @@ import { HabitModal } from './components/habits/HabitModal';
 import { CategoryModal } from './components/categories/CategoryModal';
 import { SearchModal } from './components/ui/SearchModal';
 import { NotificationToastManager } from './components/reminders/NotificationToastManager';
+import { ForegroundToast } from './components/ui/PushNotificationUI';
 import { parseNaturalLanguageEvent } from './utils/assistantParser';
 import { setHours, setMinutes } from 'date-fns';
 
@@ -43,6 +45,14 @@ const ProtectedRoute = ({ children }) => {
 const MainAppLayout = () => {
   const { events, addEvent, updateEvent, deleteEvent, toggleComplete } = useEvents();
   const { toasts, removeToast, permissionGranted, requestNotificationPermission } = useReminders(events);
+  const {
+    pushEnabled,
+    pushLoading,
+    pushError,
+    foregroundMessage,
+    enablePushNotifications,
+    disablePushNotifications,
+  } = usePushNotifications();
   const {
     habits,
     completions,
@@ -244,6 +254,11 @@ const MainAppLayout = () => {
                 onQuickCreate={handleQuickCreate}
                 onRequestPermission={requestNotificationPermission}
                 permissionGranted={permissionGranted}
+                pushEnabled={pushEnabled}
+                pushLoading={pushLoading}
+                pushError={pushError}
+                onEnablePush={enablePushNotifications}
+                onDisablePush={disablePushNotifications}
                 {...habitProps}
               />
             }
@@ -321,6 +336,12 @@ const MainAppLayout = () => {
       <NotificationToastManager
         toasts={toasts}
         onDismiss={removeToast}
+      />
+
+      {/* FCM Foreground Message Toast */}
+      <ForegroundToast
+        message={foregroundMessage}
+        onDismiss={() => {}}
       />
     </div>
   );

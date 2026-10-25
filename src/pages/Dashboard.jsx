@@ -6,6 +6,7 @@ import { CurrentMonthHolidays } from '../components/dashboard/CurrentMonthHolida
 import { AssistantBriefing } from '../components/dashboard/AssistantBriefing';
 import { DailyLawCard } from '../components/dashboard/DailyLawCard';
 import { HabitTracker } from '../components/habits/HabitTracker';
+import { PushNotificationBanner, PushStatusBadge } from '../components/ui/PushNotificationUI';
 import { expandEventsForWeek } from '../utils/recurrence';
 import { getStartOfWeek, getEndOfWeek, safeToDate, isToday, getProjectUrgency } from '../utils/dateHelpers';
 import { getColombianHolidaysForMonth } from '../utils/colombianHolidays';
@@ -28,7 +29,12 @@ export const Dashboard = ({
   getHabitStreak,
   getHabitMonthCount,
   onAddHabit,
-  onEditHabit
+  onEditHabit,
+  pushEnabled = false,
+  pushLoading = false,
+  pushError = null,
+  onEnablePush,
+  onDisablePush,
 }) => {
   const today = new Date();
   const weekStart = getStartOfWeek(today);
@@ -64,6 +70,19 @@ export const Dashboard = ({
 
   return (
     <div className="container" style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+      {/* Push Notification Banner / Status */}
+      {pushEnabled
+        ? <PushStatusBadge pushEnabled={pushEnabled} onDisable={onDisablePush} />
+        : <PushNotificationBanner
+            pushEnabled={pushEnabled}
+            pushLoading={pushLoading}
+            pushError={pushError}
+            onEnable={onEnablePush}
+            onDisable={onDisablePush}
+          />
+      }
+
       {/* Smart Personal Assistant Briefing Banner */}
       <AssistantBriefing
         events={rawEvents}
